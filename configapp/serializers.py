@@ -1,6 +1,7 @@
 from django.contrib.auth import authenticate
 from rest_framework import serializers
-from .models import *
+from .models import ToDoList, User
+from django.utils import timezone
 class LoginSerializers(serializers.Serializer):
     username = serializers.CharField()
     password = serializers.CharField(write_only=True)
@@ -28,7 +29,56 @@ class LoginSerializers(serializers.Serializer):
             )
         attrs["user"] = auth_user
         return attrs
-class UserSerializers(serializers.ModelSerializer):
+
+
+
+class UserCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = "__all__"
+        fields = ['id', 'username', 'password', 'email']
+        extra_kwargs = {
+            'password': {'write_only': True}
+        }
+
+    def create(self, validated_data):
+        user = User.objects.create_user(
+            username=validated_data['username'],
+            password=validated_data['password'],
+            email=validated_data.get('email'),
+            is_user=True
+        )
+        return user
+
+
+# ✅ Task serializer (admin va oddiy user uchun)
+class ToDoListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ToDoList
+        fields = ['id', 'title', 'bajarilgan', 'done_time', 'user']
+        read_only_fields = ['done_time']
+
+    def create(self, validated_data):
+        request = self.context.get('request')
+
+        # oddiy user task yarata olmaydi
+        if request and request.user.is_user:
+            raise serializers.ValidationError("Oddiy foydalanuvchi task qo‘sha olmaydi")
+
+        # admin task yaratayotganda user ni belgilashi shart
+        if 'user' not in validated_data:
+            raise serializers.ValidationError("Taskni qaysi userga berishni belgilang")
+
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        request = self.context.get('request')
+
+        if request and request.user.is_user:
+            # oddiy user faqat taskni bajarilgan qilishi mumkin
+            instance.bajarilgan = True
+            instance.done_time = timezone.now()
+            instance.save()
+            return instance
+
+        # admin esa taskni to‘liq o‘zgartirishi mumkin
+        return super().update(instance, validated_data)

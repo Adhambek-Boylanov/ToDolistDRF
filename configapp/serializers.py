@@ -50,7 +50,6 @@ class UserCreateSerializer(serializers.ModelSerializer):
         return user
 
 
-# ✅ Task serializer (admin va oddiy user uchun)
 class ToDoListSerializer(serializers.ModelSerializer):
     class Meta:
         model = ToDoList
@@ -60,11 +59,9 @@ class ToDoListSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         request = self.context.get('request')
 
-        # oddiy user task yarata olmaydi
         if request and request.user.is_user:
             raise serializers.ValidationError("Oddiy foydalanuvchi task qo‘sha olmaydi")
 
-        # admin task yaratayotganda user ni belgilashi shart
         if 'user' not in validated_data:
             raise serializers.ValidationError("Taskni qaysi userga berishni belgilang")
 
@@ -74,11 +71,9 @@ class ToDoListSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
 
         if request and request.user.is_user:
-            # oddiy user faqat taskni bajarilgan qilishi mumkin
             instance.bajarilgan = True
             instance.done_time = timezone.now()
             instance.save()
             return instance
 
-        # admin esa taskni to‘liq o‘zgartirishi mumkin
         return super().update(instance, validated_data)

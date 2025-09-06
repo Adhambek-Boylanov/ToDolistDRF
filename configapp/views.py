@@ -26,38 +26,33 @@ class LoginUser(APIView):
 
 
 
-# ✅ Faqat admin user yaratishi uchun permission
 class IsAdmin(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.user.is_authenticated and request.user.is_admin
 
 
-# ✅ Admin user yaratadigan view
 class UserCreateView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = UserCreateSerializer
-    permission_classes = [IsAdmin]   # faqat admin ishlata oladi
+    permission_classes = [IsAdmin]
 
 
-# ✅ ToDoList uchun viewset
 class ToDoListViewSet(viewsets.ModelViewSet):
     serializer_class = ToDoListSerializer
 
     def get_queryset(self):
         if self.request.user.is_admin:
             return ToDoList.objects.all()
-        # oddiy user → faqat o‘z tasklarini va bajarilmaganlarini ko‘radi
         elif self.request.user.is_user:
             return ToDoList.objects.filter(user=self.request.user,bajarilgan= False)
 
     def perform_create(self, serializer):
-        # faqat admin task yarata oladi
         if self.request.user.is_admin:
             serializer.save(bajarilgan = False)
         else:
             raise PermissionDenied("Sizga task yaratishga ruxsat yo‘q")
 
 class UserListView(generics.ListAPIView):
-    queryset = User.objects.filter(is_user=True)  # faqat oddiy userlar
+    queryset = User.objects.filter(is_user=True)
     serializer_class = UserCreateSerializer
     permission_classes = [IsAdmin]
